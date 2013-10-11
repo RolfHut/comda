@@ -1,0 +1,86 @@
+include PCRGlobWB.*; //assuming PCRBlogWB is a library?
+include map.*; //some library for map support?
+
+int nrCookies=100; //nr of cookies the world is cut into.
+int nrObs=1;//nr of observation sources 
+float dt=15*60; //nr of seconds per updatestep
+
+map worldmap;
+map cookieMap[nrCookies];
+
+PCRGlobWB cookieModel[nrCookies];
+
+int main();
+{
+  //initialize
+
+  //load the world-map.
+  worldmap.file("some file");
+
+
+  //Cut the world into pieces
+  //Load the "starting positions"
+  //create the models.
+  //This loops can run completely parallel and starts the computers (cookies)
+  for(int i=0;i<nrCookies;i++)
+    {
+      cookieMap[i] = SelectSubMap(i,worldMap);
+      cookieModel[i].init(cookieMap[i],worldMap.state(cookieMap[i]));
+      
+      //set the "startingstatistics" for the models
+      cookieModel[i].cumMoment[all].set(0);
+    }
+
+
+  // the main loop, runs forever
+  while(1)
+    {
+      //Run the models to the next timestep
+      //repeat for each ensemble, continuously updating cumMoments.
+      for(int Ensemble=0;ensemble<ensembleNr;ensemble++)
+	{
+	  //for each cookie, run the model. This is (off course) done in parallel.
+	  for(int i=0;i<nrCookies;i++)
+	    {
+	      //first: draw a new statevector from the errormodel
+	      cookieModel[i].stateVector()=cookieModel.draw();
+	      //run the model
+	      cookieModel[i].run(dt);
+	      //add results to moments
+	      cookieModel[i].cumMoment(all).add(cookieModel(i).stateVector());
+	    }
+	}
+
+      //loop thourgh the observations, for each observation, create a map to be handed to the relevant cookies
+      
+      for(int obs=0;obs<nrObs;obs++)
+	{
+	  map observation=download("some file / location"[obs]);
+	  //for each cookie, check if the observation has overlapp, if so, update the observation vector of the cookie
+	  for(int i=0;i<nrCookies;i++)
+	    {
+	      if not(isEmpty(cookieMap[i].overlap(observation)));
+	      {
+		cookieMap[i].addObservations(observation);
+	      }
+	    }
+	}
+
+      //loop through the cookies, update statevector
+      for(int i=0;i<nrCookies;i++)
+	{
+	  //check is any data for this cookie, if so: use Data assimilation, if not, just use ensemble for new state vector
+	  if isempty(cookieMap[i].observations())
+	    {
+	      cookieModel[i].calcStateVector(cookieModel[i].cumMoments);
+	    }
+	  else
+	    {
+	      cookieModel[i].dataAssimilatieStateVector(cookieModel[i].comMoments,cookieMap[i].observations);
+	    }
+	}
+
+
+
+
+}
