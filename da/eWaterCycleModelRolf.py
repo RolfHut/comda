@@ -20,10 +20,12 @@ import landSurface
 import groundwater
 import routing
 
-class PCRGlobWB(DynamicModel):
+class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
 
     def __init__(self, iniStorage = None):
         DynamicModel.__init__(self)
+        MonteCarloModel.__init__(self)
+        EnKfModel.__init__(self)
         setclone(iniItems.cloneMap);
 
         # initializing routing module
@@ -42,10 +44,9 @@ class PCRGlobWB(DynamicModel):
                            self.landmask)
         self.groundwater = groundwater.Groundwater(iniItems,\
                            self.landmask)
-        
-    def initial(self): 
+    def premcloop(self):
 
-        # set initial conditions:
+        # set initial conditions for all MC members:
         self.landSurface.getICs(iniItems,spinUp.iniLandSurface)
         self.groundwater.getICs(iniItems,spinUp.iniGroundwater)
         self.routing.getICs(iniItems,spinUp.iniRouting)
@@ -53,6 +54,11 @@ class PCRGlobWB(DynamicModel):
         # only needed if the SpinUp is introduced: 
         if spinUp.noSpinUps != None:
             spinUp.getIniStates(self)
+        
+    def initial(self):
+        self.landSurface.storUpp000005=self.landSurface.storUpp000005 + (mapnormal() * 0.001)
+ 
+ 
 
     def dynamic(self):
 
@@ -149,7 +155,11 @@ class PCRGlobWB(DynamicModel):
                             % (var,int(currTimeStep.doy),\
                                    int(currTimeStep.year),volume/1e9)
                         logProcess.write(msg) ; print(msg)
-                    logProcess.write('')                                   
+                    logProcess.write('')
+
+        #write outputs for MC
+        self.report(self.landSurface.storUpp000005, "sm")
+        self.report(self.routing.discharge, "d")
 
     def getEndStates(self,currTimeStep,iniItems): # THIS PART SHOULD MOVE TO the spinUp module
 
@@ -222,6 +232,46 @@ class PCRGlobWB(DynamicModel):
              str(currTimeStep.fulldate)+".map",\
              iniItems.endStateDir)
 
+    def postmcloop(self):
+        pass
+
+    def setState(self):
+        modelledData = self.readmap("sm")
+
+        #load a map that contains the pixels with measurements
+
+        #convert modeldata to estimates at the location of the measurements
+        
+        modelledAverageMap = areaaverage(modelledData, iniItems.cloneMap)
+        self.report(modelledAverageMap, "modAv")
+        values = numpy.zeros(1)
+        values[0] = cellvalue(modelledAverageMap, 1, 1)[0]
+        return values
+
+    def setObservations(self):
+        timestep = self.currentTimeStep()
+        #observedData = readmap(generateNameT("obsAv", timestep))
+        values = numpy.zeros(1)
+        values[0] = 0.5
+        #values[0] = cellvalue(observedData, 1, 1)[0]
+        
+        # creating the observation matrix (nrObservations x nrSamples)
+        # here without added noise
+        observations = numpy.array([values,]*self.nrSamples()).transpose()
+
+        # creating the covariance matrix (nrObservations x nrObservations)
+        # here just random values
+        covariance = numpy.random.random((1, 1))
+
+        self.setObservedMatrices(observations, covariance)
+
+    def resume(self):
+        vec = self.getStateVector(self.currentSampleNumber())
+        modelledAverageMap = self.readmap("modAv")
+        modvalues = numpy.zeros(1)
+        self.landSurface.storUpp000005 = pcr.scalar(cellvalue(modelledAverageMap, 1, 1)[0])
+    
+
 # Global Objects:
 iniItems = iniFile.IniList()               # content of configuration file)
 logProcess = logProcess.LogProcess()       # object for logging
@@ -275,8 +325,12 @@ def main():
     myModel = PCRGlobWB()
     dynamicModel = DynamicFramework(myModel,currTimeStep.nrOfTimeSteps)
     dynamicModel.setQuiet(True)
-    dynamicModel.run()
-    
+
+    MCModel=MonteCarloFramework(dynamicModel, nrSamples=2)
+    ekfModel = EnsKalmanFilterFramework(MCModel)
+    ekfModel.setFilterTimesteps([2,20])
+    ekfModel.run()
+
     # end of logFile
     logProcess.end()
 
