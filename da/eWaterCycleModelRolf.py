@@ -35,7 +35,9 @@ class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
         if iniItems.globalOptions['landmask'] != "None":
            self.landmask = vos.readPCRmapClone(\
            iniItems.globalOptions['landmask'],
-           iniItems.cloneMap,iniItems.tmpDir,iniItems.inputDir)	
+           iniItems.cloneMap,iniItems.tmpDir,iniItems.inputDir)
+
+        
         
         # initializing other modules
         self.meteo = meteo.Meteo(iniItems,\
@@ -313,26 +315,40 @@ class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
              iniItems.endStateDir)
 
     def postmcloop(self):
-        pass
+        names = ["q"]
+        mcaveragevariance(names, self.sampleNumbers(), self.timeSteps())
+        percentiles = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+        mcpercentiles(names, percentiles, self.sampleNumbers(), self.timeSteps())
 
     def setState(self):
+        values=numpy.zeros(2)
         discharge = self.readmap("q")
         #Location of station 1 in grid-coordinates
-        loc1x=2
-        loc1y=5
+        loc0x=373
+        loc0y=77
         #Location of station 2 in grid-coordinates
-        loc2x=2
-        loc2y=5
-        values = cellvalue(discharge, loc1x, loc1y)[0]
-        values = values.append(cellvalue(discharge, loc2x, loc2y)[0])
+        loc1x=372
+        loc1y=78
+        values[0] = cellvalue(discharge, loc0y, loc0x)[0]
+        values[1] = cellvalue(discharge, loc1y, loc1x)[0]
         return values
 
     def setObservations(self):
         timestep = self.currentTimeStep()
-        #observedData = readmap(generateNameT("obsAv", timestep))
+
         values = numpy.zeros(2)
-        values[0] = GETFROMFILE(station1,timestep)
-        values[1] = GETFROMFILE(station2,timestep)
+
+        f = open(iniItems.globalOptions['observationDir'] + "/LOBITH_data_integrated_start_1950.txt",'r')
+        b = f.readlines()
+        values[0] = float(b[0+18629+timestep-1].split("\t")[1].split("\n")[0])
+        f.close()
+        f = open(iniItems.globalOptions['observationDir'] + "/BORGHAREN_data_integrated_start_1950.txt",'r')
+        b = f.readlines()
+        values[1] = float(b[0+18629+timestep-1].split("\t")[1].split("\n")[0])
+        f.close()
+        
+        #observedData = readmap(generateNameT("obsAv", timestep))
+        
         #values[0] = cellvalue(observedData, 1, 1)[0]
         
         # creating the observation matrix (nrObservations x nrSamples)
@@ -506,10 +522,10 @@ def main():
     dynamicModel = DynamicFramework(myModel,currTimeStep.nrOfTimeSteps)
     dynamicModel.setQuiet(True)
 
-    MCModel=MonteCarloFramework(dynamicModel, nrSamples=4)
+    MCModel=MonteCarloFramework(dynamicModel, nrSamples=50)
     MCModel.setForkSamples(True, nrCPUs=2)
     ekfModel = EnsKalmanFilterFramework(MCModel)
-    ekfModel.setFilterTimesteps([2,4])
+    ekfModel.setFilterTimesteps([15, 30, 45])
     ekfModel.run()
 
     # end of logFile
