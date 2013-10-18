@@ -57,6 +57,8 @@ class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
         
     def initial(self):
         self.landSurface.storUpp000005=self.landSurface.storUpp000005 + (mapnormal() * 0.001)
+        self.test=mapnormal()
+
  
  
 
@@ -159,7 +161,9 @@ class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
 
         #write outputs for MC
         self.report(self.landSurface.storUpp000005, "sm")
+        self.report(self.test, "test")
         self.report(self.routing.discharge, "d")
+        
 
     def getEndStates(self,currTimeStep,iniItems): # THIS PART SHOULD MOVE TO the spinUp module
 
@@ -268,8 +272,7 @@ class PCRGlobWB(DynamicModel, MonteCarloModel, EnKfModel):
     def resume(self):
         vec = self.getStateVector(self.currentSampleNumber())
         modelledAverageMap = self.readmap("modAv")
-        modvalues = numpy.zeros(1)
-        self.landSurface.storUpp000005 = pcr.scalar(cellvalue(modelledAverageMap, 1, 1)[0])
+        self.landSurface.storUpp000005 = pcr.scalar(vec[0])
     
 
 # Global Objects:
