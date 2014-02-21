@@ -1,4 +1,4 @@
-function state_out=AR1Filter(parameters,state_in,n_timesteps,forcing)
+function state_out=Lorenz(parameters,state_in,n_timesteps,forcing)
 
 state_out=state_in;
 

@@ -8,8 +8,8 @@ clear all
 close all
 
 %% settings
-projectDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/comDA';
-libDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/lib';
+projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
+libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
 
 addpath(libDir);
@@ -77,17 +77,17 @@ truth.model=model.model;
 truth.parameters=model.parameters;
 
 %true forcing
-truth.forcing=randn(n,n_timesteps);
+truth.forcing=randn(n,n_timesteps*n_modelStepsPerTimestep);
 
 %true states, using true model and true forcing.
 truth.state=zeros(n,n_timesteps);
-t=0;
-for t_step=1:n_timesteps
-    t=t+1;
+
+for t=1:n_timesteps
+    tSelect=(t-1)*n_modelStepsPerTimestep+(1:n_modelStepsPerTimestep);
     if t==1;
-        truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep,truth.forcing(:,t));
+        truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep,truth.forcing(:,tSelect));
     else
-        truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),n_modelStepsPerTimestep,truth.forcing(:,t));
+        truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),n_modelStepsPerTimestep,truth.forcing(:,tSelect));
     end %if n==1;
 end %for t_step=1:n_timesteps
 
@@ -125,8 +125,8 @@ for t_step=1:m_timesteps;
 end %for t_step=1:length(observations.timestamp);
 
 %create forcing ensemble
-observations.forcingEnsemble=zeros(n,N,n_timesteps);
-for t_step=1:n_timesteps;
+observations.forcingEnsemble=zeros(n,N,n_timesteps*n_modelStepsPerTimestep);
+for t_step=1:(n_timesteps*n_modelStepsPerTimestep);
     observations.forcingEnsemble(:,:,t_step)=observations.forcing(:,t_step)*ones(1,N)+...
         (observations.forcingError*ones(1,N)).*randn(n,N);
 end %for t_step=1:length(observations.timestamp);
@@ -144,7 +144,7 @@ EnKFEnsembleStd=permute(std(ensemble,[],2),[1 3 2]);
 %% run comDA
 
 [comDAEnsembleMean,comDACovarianceMatrix]=...
-    comDA2(model,observations,transformation,settings,n_timesteps,...
+    comDA(model,observations,transformation,settings,n_timesteps,...
     n_modelStepsPerTimestep,N);
 
 comDAStd=zeros(n,n_timesteps);

@@ -77,12 +77,13 @@ for t=1:n_timesteps
     %loop through the ensemble members
     for ensembleCounter=1:N
         %run the model
+        tSelect=(t-1)*n_modelStepsPerTimestep+(1:n_modelStepsPerTimestep);
         if t==1;
             ensemble(:,ensembleCounter,t)=feval(model.model,model.parameters...
-                ,initial_ensemble(:,ensembleCounter),n_modelStepsPerTimestep,observations.forcingEnsemble(:,ensembleCounter,t));
+                ,initial_ensemble(:,ensembleCounter),n_modelStepsPerTimestep,observations.forcingEnsemble(:,ensembleCounter,tSelect));
         else
             ensemble(:,ensembleCounter,t)=feval(model.model,model.parameters...
-                ,ensemble(:,ensembleCounter,t-1),n_modelStepsPerTimestep,observations.forcingEnsemble(:,ensembleCounter,t));
+                ,ensemble(:,ensembleCounter,t-1),n_modelStepsPerTimestep,observations.forcingEnsemble(:,ensembleCounter,tSelect));
         end %if n==1;
         
     end %for ensemble=1:N_ensembles

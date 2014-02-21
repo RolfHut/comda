@@ -13,9 +13,11 @@ clc
 clear all
 
 %% settings
-projectDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/comDA';
-libDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/lib';
+projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
+libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
+
+filename='fig6_comDAvsEnKFLorenzConvergence';
 
 addpath(libDir);
 %% parameters
@@ -24,7 +26,7 @@ addpath(libDir);
 
 %total number of timesteps to run
 n_timesteps=500;
-n_modelStepsPerTimestep=[25];
+n_modelStepsPerTimestep=[20];
 
 %time axis (for plotting)
 dt=1;
@@ -90,7 +92,7 @@ comDAImprovement=zeros(length(N),runNr);
 
 
 for N_counter=1:length(N);
-    
+    disp(N(N_counter));
     subPlotCounter=subPlotCounter+1;
     
     
@@ -117,20 +119,18 @@ for N_counter=1:length(N);
         truth.parameters=model.parameters;
         
         %true forcing
-        truth.forcing=20*randn(n,n_timesteps);
+        truth.forcing=20*randn(n,n_timesteps*n_modelStepsPerTimestep);
         
         %true states, using true model and true forcing.
         truth.state=zeros(n,n_timesteps);
-        t=0;
-        for t_step=1:n_timesteps
-            t=t+1;
-            if t==1;
-                truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep);
-            else
-                truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),...
-                    n_modelStepsPerTimestep,truth.forcing(:,t));
-            end %if n==1;
-        end %for t_step=1:n_timesteps
+for t=1:n_timesteps
+    tSelect=(t-1)*n_modelStepsPerTimestep+(1:n_modelStepsPerTimestep);
+    if t==1;
+        truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep,truth.forcing(:,tSelect));
+    else
+        truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),n_modelStepsPerTimestep,truth.forcing(:,tSelect));
+    end %if n==1;
+end %for t_step=1:n_timesteps
         
         %% create observations from truth
         
@@ -165,12 +165,12 @@ for N_counter=1:length(N);
                 (settings.sigma_d(transformation.observedStates)*ones(1,N(N_counter))).*randn(m,N(N_counter));
         end %for t_step=1:length(observations.timestamp);
         
-        %create forcing ensemble
-        observations.forcingEnsemble=zeros(n,N(N_counter),n_timesteps);
-        for t_step=1:n_timesteps;
-            observations.forcingEnsemble(:,:,t_step)=observations.forcing(:,t_step)*ones(1,N(N_counter))+...
-                (observations.forcingError*ones(1,N(N_counter))).*randn(n,N(N_counter));
-        end %for t_step=1:length(observations.timestamp);
+%create forcing ensemble
+observations.forcingEnsemble=zeros(n,N(N_counter),n_timesteps*n_modelStepsPerTimestep);
+for t_step=1:(n_timesteps*n_modelStepsPerTimestep);
+    observations.forcingEnsemble(:,:,t_step)=observations.forcing(:,t_step)*ones(1,N(N_counter))+...
+        (observations.forcingError*ones(1,N(N_counter))).*randn(n,N(N_counter));
+end %for t_step=1:length(observations.timestamp);
         
         %run the EnKF
         
@@ -197,9 +197,15 @@ for N_counter=1:length(N);
         
         %% run comDA
         
-        [comDAEnsembleMean,comDACovarianceMatrix]=...
-            comDA(model,observations,transformation,settings,n_timesteps,...
-            n_modelStepsPerTimestep,N(N_counter));
+        try
+            [comDAEnsembleMean,comDACovarianceMatrix]=...
+                comDA(model,observations,transformation,settings,n_timesteps,...
+                n_modelStepsPerTimestep,N(N_counter));
+        catch
+            comDAEnsembleMean=NaN(n,n_timesteps);
+            comDACovarianceMatrix=NaN(n,n,n_timesteps);
+        end
+
         
         comDAStd=zeros(n,n_timesteps);
         for t=1:n_timesteps
@@ -222,6 +228,11 @@ end %for N_counter=1:length(N);
 %% add info to figure
 
 tic;while (toc<5);beep;end
+
+%% save results to be able to change figure without re-running analyses
+
+save([figdir filesep filename '.mat']);
+
 
 %% make figure
 
@@ -247,4 +258,4 @@ set(gca,'YLim',log10([0.2 20]))
 xlabel('number of ensemble members')
 ylabel('RMS in comDA')
 
-print(gcf,[figdir filesep 'fig6_comDAvsEnKFLorenzConvergence.eps'],'-depsc');
+print(gcf,[figdir filesep filename '.eps'],'-depsc');

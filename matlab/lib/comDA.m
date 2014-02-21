@@ -45,15 +45,17 @@ while t < n_timesteps
         if firstTimeLoop; %draw from initial distribution
             Psi_0=mvnrnd(settings.mu_psi_0,settings.cov_psi_0)';
         else %draw from previous time step distribution
-            Psi_0=mvnrnd(Psi_f_mu,P_f)';
+            Psi_0=mvnrnd(Psi_f_mu',P_f)';
         end %if n==1;
         
         %loop through the timesteps till the observation
         for t=timesteps
             
             %Step 2: run the model
+            tSelect=(t-1)*n_modelStepsPerTimestep+(1:n_modelStepsPerTimestep);
+            
             Psi_f=feval(model.model,model.parameters,Psi_0,n_modelStepsPerTimestep,...
-                observations.forcingEnsemble(:,ensembleCounter,t));
+                observations.forcingEnsemble(:,ensembleCounter,tSelect));
             
             %Step 3: update placeholders
             m1(:,t)=m1(:,t)+Psi_f;
@@ -72,6 +74,7 @@ while t < n_timesteps
     firstTimeLoop=false;
     
     if observationCounter <= length(observations.timestamp)
+        
         %step 5: calculate Psi_f_mu en P_f
         Psi_f_mu=m1(:,t)/N;
         P_f=(1/(N-1))*(m2(:,:,t)-(m1(:,t)*m1(:,t)'/N));
@@ -83,45 +86,35 @@ while t < n_timesteps
         R=(1/(N-1))*(eps_D*eps_D');
         K=(P_f*transformation.H')/(transformation.H*P_f*transformation.H'+R);
         
-        %clear m1 and m2 for this timestep
-        m1(:,t)=zeros(model.stateVectorSize,1);
-        m2(:,:,t)=zeros(model.stateVectorSize,model.stateVectorSize,1);
         
-        
-        %loop through the ensemble members
-        for ensembleCounter=1:N
-            
-            %step 7: draf Psi_f
-            Psi_f=mvnrnd(Psi_f_mu,P_f)';
-            
-            %step 8: update: calculate %Psi_a=Psi_f + K * (d - H * Psi_f)
-            Psi_a=Psi_f+K * (observations.ensemble(:,ensembleCounter,observationCounter)-...
-                transformation.H * Psi_f);
-            
-            %Step 9: update placeholders
-            m1(:,t)=m1(:,t)+Psi_a;
-            m2(:,:,t)=m2(:,:,t)+(Psi_a*Psi_a');
-            
-            %step 10: repeat for N ensemble members
-        end %for ensembleCounter=1:N
-        
-        %step 11, calculate Psi_a_mu and P_a, here called Psi_f_mu and P_f,
+        %step 7: calculate Psi_a_mu and P_a, here called Psi_f_mu and P_f,
         %because it saves memory for the next loop-iteration not to have to
         %store it double
-        Psi_f_mu=m1(:,t)/N;
-        P_f=(1/(N-1))*(m2(:,:,t)-(m1(:,t)*m1(:,t)'/N));
+        Psi_f_mu=Psi_f_mu+K * (observations.obs(:,observationCounter)-...
+            transformation.H * Psi_f_mu);
+        P_f=(eye(model.stateVectorSize)-K*transformation.H)*P_f*...
+            (eye(model.stateVectorSize)-K*transformation.H)'+(K*R*K');
         
-        %step 12: loop for next observation.
+        %for numerical stability, make P_f symetrical
+        P_f=0.5*(P_f+P_f');
+        
+        
+        ensembleMean(:,t)=Psi_f_mu;
+        covarianceMatrix(:,:,t)=P_f;
+        
+        
         observationCounter=observationCounter+1;
         
     end %if observationCounter < length(observations.timestamp)
     
 end %while t <= n_timesteps
-%% generate output
 
-ensembleMean=m1/N;
+
 
 for t=1:n_timesteps
-    covarianceMatrix(:,:,t)=(1/(N-1))*(m2(:,:,t)-(m1(:,t)*m1(:,t)'/N));
+    if sum(observations.timestamp==t)==0
+        ensembleMean(:,t)=m1(:,t)/N;
+        covarianceMatrix(:,:,t)=(1/(N-1))*(m2(:,:,t)-(m1(:,t)*m1(:,t)'/N));
+    end %if sum(observations.timestamp==t)==0
 end %for t=1:n_timesteps
 

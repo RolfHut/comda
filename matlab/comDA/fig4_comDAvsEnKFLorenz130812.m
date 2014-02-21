@@ -14,9 +14,11 @@ clear all
 close all
 
 %% settings
-projectDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/comDA';
-libDir='/Users/rwhut/Documents/TU/eWaterCycle/matlab/lib';
+projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
+libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
+
+filename='fig4_comDAvsEnKFLorenz';
 
 addpath(libDir);
 %% parameters
@@ -25,11 +27,8 @@ addpath(libDir);
 
 %total number of timesteps to run
 n_timesteps=500;
-n_modelStepsPerTimestep=[25 100];
+n_modelStepsPerTimestep=[20 100];
 
-%time axis (for plotting)
-dt=1;
-tAxis=dt*(1:n_timesteps);
 
 %observation timestamps
 observations.timestamp=50:50:n_timesteps;
@@ -41,6 +40,7 @@ model.parameters.sigma = 10;
 model.parameters.rho = 28;
 model.parameters.beta = 8.0/3;
 model.parameters.dt=1e-3;
+
 
 %the structure relating model space to measurement space
 % in this simple example: states 1 and 2 out of 3 are observed, so the model space
@@ -83,14 +83,19 @@ m_timesteps=length(observations.timestamp);
 %% loop through the variables that change for the different sub-plots:
 % n_modelStepsPerTimestep and settings.sigma_d
 
-subPlotCounter=0;
 
-for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
-    for sigma_dCoutner=1:size(settings.sigma_d,1);
+results=cell(size(settings.sigma_d,1),length(n_modelStepsPerTimestep));
+
+
+for sigma_dCoutner=1:size(settings.sigma_d,1);
+    for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
         
         EnKFImprovement=[];
         comDAImprovement=[];
-        subPlotCounter=subPlotCounter+1;
+        
+        %time axis (for plotting)
+        tAxis=model.parameters.dt*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)*...
+            (1:n_timesteps);
         
         
         for runCounter=1:runNr; %repeat a few times to get more data.
@@ -116,20 +121,22 @@ for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
             truth.parameters=model.parameters;
             
             %true forcing
-            truth.forcing=20*randn(n,n_timesteps);
+            truth.forcing=20*randn(n,n_timesteps*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter));
             
             %true states, using true model and true forcing.
             truth.state=zeros(n,n_timesteps);
-            t=0;
-            for t_step=1:n_timesteps
-                t=t+1;
+            
+            for t=1:n_timesteps
+                tSelect=(t-1)*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)+(1:n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter));
                 if t==1;
-                    truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter));
+                    truth.state(:,t)=feval(truth.model,truth.parameters,psi_0,n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)...
+                        ,truth.forcing(:,tSelect));
                 else
-                    truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),...
-                        n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter),truth.forcing(:,t));
+                    truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)...
+                        ,truth.forcing(:,tSelect));
                 end %if n==1;
             end %for t_step=1:n_timesteps
+            
             
             %% create observations from truth
             
@@ -165,12 +172,12 @@ for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
             end %for t_step=1:length(observations.timestamp);
             
             %create forcing ensemble
-            observations.forcingEnsemble=zeros(n,N,n_timesteps);
-            for t_step=1:n_timesteps;
+            observations.forcingEnsemble=zeros(n,N,n_timesteps*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter));
+            for t_step=1:n_timesteps*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter);
                 observations.forcingEnsemble(:,:,t_step)=observations.forcing(:,t_step)*ones(1,N)+...
                     (observations.forcingError*ones(1,N)).*randn(n,N);
             end %for t_step=1:length(observations.timestamp);
-            
+             
             %run the EnKF
             
             ensemble=EnKF(model,observations,transformation,initial_ensemble,...
@@ -187,8 +194,8 @@ for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
             improveStatistic=sqrt(mean((EnKFEnsembleMean(plotParameter,:)-...
                 truth.state(plotParameter,:)).^2));
             
-            EnKFImprovement=[EnKFImprovement improveStatistic];
-                
+            EnKFImprovement=[EnKFImprovement;improveStatistic];
+            
             
             %% run comDA
             
@@ -207,39 +214,58 @@ for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
             %RMS of entire run
             improveStatistic=sqrt(mean((comDAEnsembleMean(plotParameter,:)...
                 -truth.state(plotParameter,:)).^2));
-            comDAImprovement=[comDAImprovement improveStatistic];
-            
+            comDAImprovement=[comDAImprovement;improveStatistic];
             
         end %for runCounter=1:runNr;
         
-        %scatter EnKF results vs comDA results, make the figure.
-        figure(1);
-        subplot(length(n_modelStepsPerTimestep),size(settings.sigma_d,1),subPlotCounter);
-        scatter(EnKFImprovement,comDAImprovement);
-        axis([0 10 0 10]);
-        hold on
-        plot(0:1:10,0:1:10,'r')
-        drawnow
-        
+        results{sigma_dCoutner,n_modelStepsPerTimestepCounter}=[EnKFImprovement comDAImprovement];
         
         
     end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 end %for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
 
+
+%% save results to be able to change figure without re-running analyses
+
+save([figdir filesep filename '.mat']);
+
+
+%% make figure
+
+subPlotCounter=0;
+%scatter EnKF results vs comDA results, make the figure.
+for sigma_dCoutner=1:size(settings.sigma_d,1);
+    for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
+        
+        subPlotCounter=subPlotCounter+1;
+        
+        figure(1);
+        subplot(size(settings.sigma_d,1),length(n_modelStepsPerTimestep),subPlotCounter);
+        scatter(results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,1),...
+            results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,2));
+        axis([0 10 0 10]);
+        hold on
+        plot(0:1:10,0:1:10,'r')
+        drawnow
+        
+    end %for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
+end %for sigma_dCoutner=1:size(settings.sigma_d,1);
+
+
 %% add info to figure
 
 subplot(2,2,1);
-title('(a)');
-ylabel('RMS in comDA')
+title('scenario L1');
+ylabel({'RMS in comDA','variation in obsservation = 1'})
 subplot(2,2,2);
-title('(b)');
+title('scenario L2');
 subplot(2,2,3);
-ylabel('RMS in comDA')
-xlabel('RMS in EnKF');
-title('(c)');
+ylabel({'RMS in comDA','variation in observation = 10'})
+xlabel({'RMS in EnKF','time per observation = 1 s'});
+title('scenario L3');
 subplot(2,2,4);
-xlabel('RMS in EnKF');
-title('(d)');
+xlabel({'RMS in EnKF','time per observation = 5 s'});
+title('scenario L4');
 
-print(gcf,[figdir filesep 'fig4_comDAvsEnKFLorenz.eps'],'-depsc');
+print(gcf,[figdir filesep filename '.eps'],'-depsc');
 
