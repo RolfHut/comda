@@ -26,7 +26,7 @@ addpath(libDir);
 
 %total number of timesteps to run
 n_timesteps=500;
-n_modelStepsPerTimestep=[20];
+n_modelStepsPerTimestep=100;
 
 %time axis (for plotting)
 dt=1;
@@ -64,7 +64,7 @@ plotParameter=1;
 
 %% settings/assumptions needed by the different schemes
 %standard deviation (error) in observations
-settings.sigma_d=[1;1]*[1];
+settings.sigma_d=[1;1]*[10];
 
 %forcing error, standard deviation of observations of the forcings
 observations.forcingError=[1;1;1];

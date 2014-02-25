@@ -17,7 +17,7 @@ addpath(libDir);
 
 %total number of timesteps to run
 n_timesteps=500;
-n_modelStepsPerTimestep=20;
+n_modelStepsPerTimestep=100;
 
 
 %observation timestamps
@@ -47,7 +47,7 @@ psi_0=10*randn(3,1);
 
 
 %number of ensemble members
-N=250;
+N=100;
 
 %which state to plot
 plotParameter=1;
