@@ -201,6 +201,7 @@ save([figdir filesep filename '.mat']);
 
 
 %% make figure
+load([figdir filesep filename '.mat']);
 
 subPlotCounter=0;
 %scatter EnKF results vs comDA results, make the figure.
@@ -227,15 +228,15 @@ end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 
 subplot(2,2,1);
 title('scenario A1');
-ylabel({'RMS in comDA','variation in obsservation = 1'})
+ylabel({'RMS in comDA','observation variance = 1'})
 subplot(2,2,2);
 title('scenario A2');
 subplot(2,2,3);
-ylabel({'RMS in comDA','variation in observation = 10'})
-xlabel({'RMS in EnKF','time per observation = 50'});
+ylabel({'RMS in comDA','observation variance = 10'})
+xlabel({'RMS in EnKF','observation interval = 50'});
 title('scenario A3');
 subplot(2,2,4);
-xlabel({'RMS in EnKF','time per observation = 200'});
+xlabel({'RMS in EnKF','observation interval = 200'});
 title('scenario A4');
 print(gcf,[figdir filesep filename '.eps'],'-depsc');
 

@@ -256,15 +256,15 @@ end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 
 subplot(2,2,1);
 title('scenario L1');
-ylabel({'RMS in comDA','variation in obsservation = 1'})
+ylabel({'RMS in comDA','observation variance = 1'})
 subplot(2,2,2);
 title('scenario L2');
 subplot(2,2,3);
-ylabel({'RMS in comDA','variation in observation = 10'})
-xlabel({'RMS in EnKF','time per observation = 1 s'});
+ylabel({'RMS in comDA','observation variance = 10'})
+xlabel({'RMS in EnKF','observation interval = 1'});
 title('scenario L3');
 subplot(2,2,4);
-xlabel({'RMS in EnKF','time per observation = 5 s'});
+xlabel({'RMS in EnKF','observation interval = 5'});
 title('scenario L4');
 
 print(gcf,[figdir filesep filename '.eps'],'-depsc');

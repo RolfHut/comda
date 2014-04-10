@@ -242,9 +242,9 @@ subplot(1,2,1);
 boxplot(log10(EnKFImprovement'),'position',log10(N));
 set(gca,'XTick',log10(N))
 set(gca,'XTickLabel',N)
-set(gca,'YTick',log10([0.5 1 2 5 10 20]))
-set(gca,'YTickLabel',[0.5 1 2 5 10 20])
-set(gca,'YLim',log10([0.2 20]))
+set(gca,'YTick',log10([6:11]))
+set(gca,'YTickLabel',[6:11])
+set(gca,'YLim',log10([6 11]))
 xlabel('number of ensemble members')
 ylabel('RMS in EnKF')
 
@@ -252,9 +252,9 @@ subplot(1,2,2);
 boxplot(log10(comDAImprovement'),'position',log10(N));
 set(gca,'XTick',log10(N))
 set(gca,'XTickLabel',N)
-set(gca,'YTick',log10([0.5 1 2 5 10 20]))
-set(gca,'YTickLabel',[0.5 1 2 5 10 20])
-set(gca,'YLim',log10([0.2 20]))
+set(gca,'YTick',log10([6:11]))
+set(gca,'YTickLabel',[6:11])
+set(gca,'YLim',log10([6 11]))
 xlabel('number of ensemble members')
 ylabel('RMS in comDA')
 

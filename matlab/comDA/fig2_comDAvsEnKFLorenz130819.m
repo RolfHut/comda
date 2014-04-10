@@ -17,11 +17,12 @@ addpath(libDir);
 
 %total number of timesteps to run
 n_timesteps=500;
-n_modelStepsPerTimestep=100;
+n_modelStepsPerTimestep=20;
 
 
 %observation timestamps
 observations.timestamp=50:50:n_timesteps;
+
 
 %the actual model
 model.model=@Lorenz;
@@ -34,6 +35,7 @@ model.parameters.dt=1e-3;
 %time axis (for plotting)
 dt=1;
 tAxis=model.parameters.dt*n_modelStepsPerTimestep*(1:n_timesteps);
+observations.tAxis=model.parameters.dt*n_modelStepsPerTimestep*observations.timestamp;
 
 
 %the structure relating model space to measurement space
@@ -160,27 +162,36 @@ end %for t=1:n_timesteps
 %% plot results
 close all
 figure(1);
-subplot(2,1,1);
+ha1=subplot(2,1,1);
 %plot truth
-plot(tAxis,truth.state(plotParameter,:),'.')
+plot(tAxis,truth.state(plotParameter,:),'k')
 hold on
+%plot observations
+plot(observations.tAxis,observations.obs(plotParameter,:),'o');
 %plot EnKF results
-plot(tAxis,EnKFEnsembleMean(plotParameter,:))
-plot(tAxis,EnKFEnsembleMean(plotParameter,:)+2*EnKFEnsembleStd(plotParameter,:),'r')
+plot(tAxis,EnKFEnsembleMean(plotParameter,:),'-.')
+plot(tAxis,EnKFEnsembleMean(plotParameter,:)+2*EnKFEnsembleStd(plotParameter,:),'-.r')
 %plot comDA results
 plot(tAxis,comDAEnsembleMean(plotParameter,:),'--')
 plot(tAxis,comDAEnsembleMean(plotParameter,:)+2*comDAStd(plotParameter,:),'--r')
 
-plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'r')
+plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'-.r')
 plot(tAxis,comDAEnsembleMean(plotParameter,:)-2*comDAStd(plotParameter,:),'--r')
 
-legend('truth','EnKF Ensemble Mean',...
+hl1=legend('truth','observations','EnKF Ensemble Mean',...
     'EnKF 95% ensemble interval','comDA Ensemble Mean','comDA 95% ensemble interval',...
-    'Location','SouthWest');
-subplot(2,1,2)
+    'Location','NorthEastOutside');
+ha2=subplot(2,1,2);
 plot(tAxis,EnKFEnsembleStd(plotParameter,:),tAxis,comDAStd(plotParameter,:),'r');
-legend('standard deviation EnKF','standard deviation comDA','Location','NorthWest');
+hl2=legend('standard deviation EnKF','standard deviation comDA','Location','NorthEastOutside');
 xlabel('time');
+
+pl1 = get(hl1,'Position');
+pl2 = get(hl2,'Position');
+set(hl1,'Position',[pl2(1) pl1(2) pl2(3) pl1(4)]);
+pa1 = get(ha1,'Position');
+pa2 = get(ha2,'Position');
+set(ha1,'Position',[pa2(1) pa1(2) pa2(3) pa1(4)]);
 
 print(gcf,[figdir filesep 'fig2_comDAvsEnKFLorenz.eps'],'-depsc');
 
