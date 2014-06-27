@@ -8,6 +8,10 @@
 % take a statevector and a time-step as inputs and returns an updated
 % statevector
 
+%UPDATE 140505: changed all output file names to RumEnKF to match article
+%jargon. TODO: change all variables as well :-s
+
+
 %% prelim
 clc
 clear all
@@ -17,6 +21,8 @@ close all
 projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
 libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
+
+cacheDir=[projectDir '/../../../../localData/matlabCache'];
 
 filename='fig4_comDAvsEnKFLorenz';
 
@@ -231,6 +237,8 @@ save([figdir filesep filename '.mat']);
 
 
 %% make figure
+load([cacheDir filesep filename '.mat']);
+
 
 subPlotCounter=0;
 %scatter EnKF results vs comDA results, make the figure.
@@ -256,11 +264,11 @@ end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 
 subplot(2,2,1);
 title('scenario L1');
-ylabel({'RMS in comDA','observation variance = 1'})
+ylabel({'RMS in RumEnKF','observation variance = 1'})
 subplot(2,2,2);
 title('scenario L2');
 subplot(2,2,3);
-ylabel({'RMS in comDA','observation variance = 10'})
+ylabel({'RMS in RumEnKF','observation variance = 10'})
 xlabel({'RMS in EnKF','observation interval = 1'});
 title('scenario L3');
 subplot(2,2,4);

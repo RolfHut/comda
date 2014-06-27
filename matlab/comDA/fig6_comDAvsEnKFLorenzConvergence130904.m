@@ -17,6 +17,9 @@ projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matla
 libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
 
+cacheDir=[projectDir '/../../../../localData/matlabCache'];
+
+
 filename='fig6_comDAvsEnKFLorenzConvergence';
 
 addpath(libDir);
@@ -231,10 +234,11 @@ tic;while (toc<5);beep;end
 
 %% save results to be able to change figure without re-running analyses
 
-save([figdir filesep filename '.mat']);
+save([cacheDir filesep filename '.mat']);
 
 
 %% make figure
+load([cacheDir filesep filename '.mat']);
 
 
 figure(2);
@@ -256,6 +260,6 @@ set(gca,'YTick',log10([6:11]))
 set(gca,'YTickLabel',[6:11])
 set(gca,'YLim',log10([6 11]))
 xlabel('number of ensemble members')
-ylabel('RMS in comDA')
+ylabel('RMS in RumEnKF')
 
 print(gcf,[figdir filesep filename '.eps'],'-depsc');

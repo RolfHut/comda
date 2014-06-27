@@ -2,6 +2,11 @@
 % This script shows the differences (almost none) between EnKF and comDA
 % when applied to a 3 dimensional AR1 model with 2 observed states
 
+%UPDATE 140505: changed all output file names to RumEnKF to match article
+%jargon. TODO: change all variables as well :-s
+
+
+
 %% prelim
 clc
 clear all
@@ -11,6 +16,8 @@ close all
 projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
 libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
 figdir=[projectDir filesep 'fig'];
+
+cacheDir=[projectDir '/../../../../localData/matlabCache'];
 
 filename='fig3_comDAvsEnKFAR1';
 
@@ -154,7 +161,7 @@ for sigma_dCoutner=1:size(settings.sigma_d,1);
                     (observations.forcingError*ones(1,N)).*randn(n,N);
             end %for t_step=1:length(observations.timestamp);
             
-           
+            
             %run the EnKF
             
             ensemble=EnKF(model,observations,transformation,initial_ensemble,n_timesteps,...
@@ -197,11 +204,11 @@ end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 
 %% save results to be able to change figure without re-running analyses
 
-save([figdir filesep filename '.mat']);
+save([cacheDir filesep filename '.mat']);
 
 
 %% make figure
-load([figdir filesep filename '.mat']);
+load([cacheDir filesep filename '.mat']);
 
 subPlotCounter=0;
 %scatter EnKF results vs comDA results, make the figure.
@@ -219,24 +226,47 @@ for sigma_dCoutner=1:size(settings.sigma_d,1);
         plot(0:1:10,0:1:10,'r')
         drawnow
         
+        if sigma_dCoutner==1
+            figure(n_modelStepsPerTimestepCounter+1)
+            scatter(results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,1),...
+                results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,2));
+            axis([0 1.5 0 1.5]);
+            hold on
+            plot(0:.1:1.5,0:.1:1.5,'r')
+            drawnow
+        end %if sigma_dCoutner==1
+        
+        
     end %for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
 end %for sigma_dCoutner=1:size(settings.sigma_d,1);
 
 
 
 %% add info to figure
-
+figure(1)
 subplot(2,2,1);
 title('scenario A1');
-ylabel({'RMS in comDA','observation variance = 1'})
+ylabel({'RMS in RumEnKF','observation variance = 1'})
 subplot(2,2,2);
 title('scenario A2');
 subplot(2,2,3);
-ylabel({'RMS in comDA','observation variance = 10'})
+ylabel({'RMS in RumEnKF','observation variance = 10'})
 xlabel({'RMS in EnKF','observation interval = 50'});
 title('scenario A3');
 subplot(2,2,4);
 xlabel({'RMS in EnKF','observation interval = 200'});
 title('scenario A4');
 print(gcf,[figdir filesep filename '.eps'],'-depsc');
+
+figure(2)
+title('scenario A1');
+xlabel({'RMS in EnKF','observation interval = 50'});
+ylabel({'RMS in RumEnKF','observation variance = 1'})
+print(gcf,[figdir filesep filename 'insetA1.eps'],'-depsc');
+figure(3)
+title('scenario A2');
+xlabel({'RMS in EnKF','observation interval = 50'});
+ylabel({'RMS in RumEnKF','observation variance = 1'})
+print(gcf,[figdir filesep filename 'insetA2.eps'],'-depsc');
+
 

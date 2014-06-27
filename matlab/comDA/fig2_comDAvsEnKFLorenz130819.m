@@ -2,6 +2,10 @@
 % This script shows the differences (almost none) between EnKF and comDA
 % when applied to a 3 parameter Lorenz model with 2 observed states
 
+%UPDATE 140505: changed all output file names to RumEnKF to match article
+%jargon. TODO: change all variables as well :-s
+
+
 %% prelim
 clc
 clear all
@@ -52,7 +56,7 @@ psi_0=10*randn(3,1);
 N=100;
 
 %which state to plot
-plotParameter=1;
+plotParameter=[1 3];
 
 
 %% settings/assumptions needed by the different schemes
@@ -160,39 +164,54 @@ for t=1:n_timesteps
 end %for t=1:n_timesteps
 
 %% plot results
+
+
 close all
-figure(1);
-ha1=subplot(2,1,1);
-%plot truth
-plot(tAxis,truth.state(plotParameter,:),'k')
-hold on
-%plot observations
-plot(observations.tAxis,observations.obs(plotParameter,:),'o');
-%plot EnKF results
-plot(tAxis,EnKFEnsembleMean(plotParameter,:),'-.')
-plot(tAxis,EnKFEnsembleMean(plotParameter,:)+2*EnKFEnsembleStd(plotParameter,:),'-.r')
-%plot comDA results
-plot(tAxis,comDAEnsembleMean(plotParameter,:),'--')
-plot(tAxis,comDAEnsembleMean(plotParameter,:)+2*comDAStd(plotParameter,:),'--r')
-
-plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'-.r')
-plot(tAxis,comDAEnsembleMean(plotParameter,:)-2*comDAStd(plotParameter,:),'--r')
-
-hl1=legend('truth','observations','EnKF Ensemble Mean',...
-    'EnKF 95% ensemble interval','comDA Ensemble Mean','comDA 95% ensemble interval',...
-    'Location','NorthEastOutside');
-ha2=subplot(2,1,2);
-plot(tAxis,EnKFEnsembleStd(plotParameter,:),tAxis,comDAStd(plotParameter,:),'r');
-hl2=legend('standard deviation EnKF','standard deviation comDA','Location','NorthEastOutside');
-xlabel('time');
-
-pl1 = get(hl1,'Position');
-pl2 = get(hl2,'Position');
-set(hl1,'Position',[pl2(1) pl1(2) pl2(3) pl1(4)]);
-pa1 = get(ha1,'Position');
-pa2 = get(ha2,'Position');
-set(ha1,'Position',[pa2(1) pa1(2) pa2(3) pa1(4)]);
-
-print(gcf,[figdir filesep 'fig2_comDAvsEnKFLorenz.eps'],'-depsc');
+for plotParameter=plotParameterList;
+    figure(plotParameter);
+    ha1=subplot(2,1,1);
+    %plot truth
+    plot(tAxis,truth.state(plotParameter,:),'k')
+    hold on
+    %plot observations
+    if plotParameter<=size(observations.obs,1)
+        
+        plot(observations.tAxis,observations.obs(plotParameter,:),'o');
+    end %    if plotParameter<=size(observations.obs,1)
+    
+    %plot EnKF results
+    plot(tAxis,EnKFEnsembleMean(plotParameter,:),'-.')
+    plot(tAxis,EnKFEnsembleMean(plotParameter,:)+2*EnKFEnsembleStd(plotParameter,:),'-.r')
+    %plot comDA results
+    plot(tAxis,comDAEnsembleMean(plotParameter,:),'--')
+    plot(tAxis,comDAEnsembleMean(plotParameter,:)+2*comDAStd(plotParameter,:),'--r')
+    
+    plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'-.r')
+    plot(tAxis,comDAEnsembleMean(plotParameter,:)-2*comDAStd(plotParameter,:),'--r')
+    
+    if plotParameter<=size(observations.obs,1)
+        hl1=legend('truth','observations','EnKF Ensemble Mean',...
+            'EnKF 95% ensemble interval','RumEnKF Ensemble Mean','RumEnKF 95% ensemble interval',...
+            'Location','NorthEastOutside');
+    else
+        hl1=legend('truth','EnKF Ensemble Mean',...
+            'EnKF 95% ensemble interval','RumEnKF Ensemble Mean','RumEnKF 95% ensemble interval',...
+            'Location','NorthEastOutside');
+    end %if plotParameter<=size(observations.obs,1)
+    ha2=subplot(2,1,2);
+    plot(tAxis,EnKFEnsembleStd(plotParameter,:),tAxis,comDAStd(plotParameter,:),'r');
+    hl2=legend('standard deviation EnKF','standard deviation RumEnKF','Location','NorthEastOutside');
+    xlabel('time');
+    
+    pl1 = get(hl1,'Position');
+    pl2 = get(hl2,'Position');
+    set(hl1,'Position',[pl2(1) pl1(2) pl2(3) pl1(4)]);
+    pa1 = get(ha1,'Position');
+    pa2 = get(ha2,'Position');
+    set(ha1,'Position',[pa2(1) pa1(2) pa2(3) pa1(4)]);
+    
+    print(gcf,[figdir filesep 'fig2_RumEnKFvsEnKFLorenzParameter' num2str(plotParameter) '.eps'],'-depsc');
+    
+end %for plotParameter=plotParameterList;
 
 
