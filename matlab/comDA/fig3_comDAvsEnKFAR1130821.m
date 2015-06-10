@@ -229,10 +229,10 @@ for sigma_dCoutner=1:size(settings.sigma_d,1);
         if sigma_dCoutner==1
             figure(n_modelStepsPerTimestepCounter+1)
             scatter(results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,1),...
-                results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,2));
-            axis([0 1.5 0 1.5]);
+                results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,2),500);
+            axis([0 2 0 2]);
             hold on
-            plot(0:.1:1.5,0:.1:1.5,'r')
+            plot(0:2:2,0:2:2,'r','LineWidth',2)
             drawnow
         end %if sigma_dCoutner==1
         
@@ -259,14 +259,16 @@ title('scenario A4');
 print(gcf,[figdir filesep filename '.eps'],'-depsc');
 
 figure(2)
-title('scenario A1');
+%title('scenario A1');
 xlabel({'RMS in EnKF','observation interval = 50'});
 ylabel({'RMS in RumEnKF','observation variance = 1'})
+axis off
 print(gcf,[figdir filesep filename 'insetA1.eps'],'-depsc');
 figure(3)
-title('scenario A2');
+%title('scenario A2');
 xlabel({'RMS in EnKF','observation interval = 50'});
 ylabel({'RMS in RumEnKF','observation variance = 1'})
+axis off
 print(gcf,[figdir filesep filename 'insetA2.eps'],'-depsc');
 
 

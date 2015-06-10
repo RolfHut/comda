@@ -56,7 +56,7 @@ psi_0=10*randn(3,1);
 N=100;
 
 %which state to plot
-plotParameter=[1 3];
+plotParameterList=[1 3];
 
 
 %% settings/assumptions needed by the different schemes
@@ -198,10 +198,15 @@ for plotParameter=plotParameterList;
             'EnKF 95% ensemble interval','RumEnKF Ensemble Mean','RumEnKF 95% ensemble interval',...
             'Location','NorthEastOutside');
     end %if plotParameter<=size(observations.obs,1)
+    xlabel('time [s]');
+    ylabel('\Psi_{1} [-]');
+    
+    
     ha2=subplot(2,1,2);
     plot(tAxis,EnKFEnsembleStd(plotParameter,:),tAxis,comDAStd(plotParameter,:),'r');
     hl2=legend('standard deviation EnKF','standard deviation RumEnKF','Location','NorthEastOutside');
-    xlabel('time');
+    xlabel('time [s]');
+    ylabel('standard deviation of \Psi_{1} [-]');
     
     pl1 = get(hl1,'Position');
     pl2 = get(hl2,'Position');
