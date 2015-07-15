@@ -86,7 +86,45 @@ for t=1:n_timesteps
                 ,ensemble(:,ensembleCounter,t-1),n_modelStepsPerTimestep,observations.forcingEnsemble(:,ensembleCounter,tSelect));
         end %if n==1;
         
+        
     end %for ensemble=1:N_ensembles
+
+    %if boundaries for the domain have been given: replace any ensemble
+    %members that fall outside the domain (or are unstabel: NaN) with a
+    %perturbed valid other ensemble member
+    
+    if not(isempty(model.domain));
+        badEnsembleMember=zeros(N,1);
+        for ensembleCounter=1:N
+            if (any((ensemble(:,ensembleCounter,t)<model.domain(:,1)) | ...
+                    (ensemble(:,ensembleCounter,t)>model.domain(:,2))) || ...
+                    any(isnan(ensemble(:,ensembleCounter,t))))
+                badEnsembleMember(ensembleCounter)=1;
+            end %if (any ...
+        end %for ensemble=1:N_ensembles
+        
+        %if invalid (out of domain or NaN) ensemblemembers are found,
+        %replace
+        if any(badEnsembleMember)
+            goodMembers = 1:N;
+            goodMembers = goodMembers(not(badEnsembleMember));
+            if isempty(goodMembers) %if no goodMembers, reset ensemble to initial.
+                ensemble(:,:,t)=initial_ensemble;
+            else
+                for ensembleCounter=1:N
+                    if badEnsembleMember(ensembleCounter)
+                        ensemble(:,ensembleCounter,t) = ensemble(:,randi([1,length(goodMembers)],1),t) + ...
+                            model.perturbationSigma.*randn(model.stateVectorSize,1);
+                    end %if badEnsembleMember(ensembleCounter)
+                end %for ensembleCounter=1:N
+            end %if isempty(goodMembers)
+        end %if any(badEnsembleMember)
+        
+        
+    end %if exist('model.domain')
+    
+    
+    
     
     %if an observations is available: update
     
@@ -101,10 +139,10 @@ for t=1:n_timesteps
         
         
         %now calculate [U,S,V]=SVD(H*Apr+gamma)
-        [Utemp,Sigma] = svd((transformation.H*Apr)+gamma);
+        [Utemp,Sigma] = svd((transformation.H*Apr)+gamma,0);
         
         U=zeros(size(transformation.H,1),N);
-        U(1:size(transformation.H,1),1:size(transformation.H,1))=Utemp;
+        U(1:size(Utemp,1),1:size(Utemp,2))=Utemp;
         Sigma=Sigma*transpose(Sigma);
         Sigma=diag(diag(Sigma).^-1);
         LambdaInv = zeros(N,N);

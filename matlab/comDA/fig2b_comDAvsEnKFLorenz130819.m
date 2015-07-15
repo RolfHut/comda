@@ -1,6 +1,6 @@
 %% doc
 % This script shows the differences (almost none) between EnKF and comDA
-% when applied to a 3 parameter Lorenz model with 2 observed states
+% when applied to a 40 parameter Lorenz model with 40 observed states
 
 %UPDATE 140505: changed all output file names to RumEnKF to match article
 %jargon. TODO: change all variables as well :-s
@@ -20,55 +20,55 @@ addpath(libDir);
 %% parameters
 
 %total number of timesteps to run
-n_timesteps=250;
-n_modelStepsPerTimestep=20;
+n_timesteps=100;
+n_modelStepsPerTimestep=1;
 
 
 %observation timestamps
-observations.timestamp=50:50:n_timesteps;
+observations.timestamp=20:20:n_timesteps;
 
 
 %the actual model
-model.model=@Lorenz;
-model.stateVectorSize=3;
-model.parameters.sigma = 10;
-model.parameters.rho = 28;
-model.parameters.beta = 8.0/3;
-model.parameters.dt=1e-3;
+model.model=@lorenz4D;
+model.stateVectorSize=40;
+model.parameters.J=model.stateVectorSize; %default 40;               %the number of variables
+model.parameters.h=0.05; %default 0.05;             %the time step
+model.parameters.F=8;
+model.parameters.pert=1e-3;
 
 %time axis (for plotting)
-dt=1;
+model.parameters.dt=model.parameters.h;
 tAxis=model.parameters.dt*n_modelStepsPerTimestep*(1:n_timesteps);
 observations.tAxis=model.parameters.dt*n_modelStepsPerTimestep*observations.timestamp;
 
 
 %the structure relating model space to measurement space
 % in this simple example: diagonal matrix: all states are observed
-transformation.observedStates=[1;2];%ones(model.stateVectorSize,1);
-transformation.H=zeros(2,3);
-transformation.H(1:2,1:2)=eye(length(transformation.observedStates));
+transformation.observedStates=(1:model.stateVectorSize)';%ones(model.stateVectorSize,1);
+transformation.H=eye(model.stateVectorSize);
 
 %the starting state vector
-psi_0=10*randn(3,1);
+psi_0=model.parameters.F.*ones(model.parameters.J,1);
+psi_0(20)=model.parameters.pert;
 
 
 %number of ensemble members
 N=100;
 
 %which state to plot
-plotParameterList=[1 3];
+plotParameterList=[1 2];
 
 
 %% settings/assumptions needed by the different schemes
 %mean in starting state vector
 settings.mu_psi_0=psi_0;
 %covariance in starting state vector
-settings.cov_psi_0=eye(model.stateVectorSize);
+settings.cov_psi_0=0.25*eye(model.stateVectorSize);
 %standard deviation (error) in observations
-settings.sigma_d=[1;1];
+settings.sigma_d=0.25*ones(model.stateVectorSize,1);
 
 %forcing error, standard deviation of observations of the forcings
-observations.forcingError=[1;1;1];
+observations.forcingError=ones(model.stateVectorSize,1);
 
 
 
@@ -176,7 +176,7 @@ for plotParameter=plotParameterList;
     %plot observations
     if plotParameter<=size(observations.obs,1)
         
-        plot(observations.tAxis,observations.obs(plotParameter,:),'kx');
+        plot(observations.tAxis,observations.obs(plotParameter,:),'xk');
     end %    if plotParameter<=size(observations.obs,1)
     
     %plot EnKF results
@@ -215,7 +215,7 @@ for plotParameter=plotParameterList;
     pa2 = get(ha2,'Position');
     set(ha1,'Position',[pa2(1) pa1(2) pa2(3) pa1(4)]);
     
-    print(gcf,[figdir filesep 'fig2_RumEnKFvsEnKFLorenzParameter' num2str(plotParameter) '.eps'],'-depsc');
+    print(gcf,[figdir filesep 'fig2b_RumEnKFvsEnKFLorenz96Parameter' num2str(plotParameter) '.eps'],'-depsc');
     
 end %for plotParameter=plotParameterList;
 

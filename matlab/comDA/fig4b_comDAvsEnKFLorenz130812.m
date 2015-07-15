@@ -17,6 +17,8 @@ clc
 clear all
 close all
 
+
+
 %% settings
 projectDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/comDA';
 libDir='/Users/rwhut/Documents/TU/eWaterCycle/github/eWaterCycle-comda/matlab/lib';
@@ -24,7 +26,7 @@ figdir=[projectDir filesep 'fig'];
 
 cacheDir=[projectDir '/../../../../localData/matlabCache'];
 
-filename='fig4_comDAvsEnKFLorenz';
+filename='fig4b_comDAvsEnKFLorenz';
 
 addpath(libDir);
 %% parameters
@@ -32,29 +34,29 @@ addpath(libDir);
 
 
 %total number of timesteps to run
-n_timesteps=500;
-n_modelStepsPerTimestep=[20 100];
+n_timesteps=100;
+n_modelStepsPerTimestep=[1 2];
 
 
 %observation timestamps
-observations.timestamp=50:50:n_timesteps;
+observations.timestamp=20:20:n_timesteps;
 
 %the actual model
-model.model=@Lorenz;
-model.stateVectorSize=3;
-model.parameters.sigma = 10;
-model.parameters.rho = 28;
-model.parameters.beta = 8.0/3;
-model.parameters.dt=1e-3;
+model.model=@lorenz4D;
+model.stateVectorSize=40;
+model.parameters.J=model.stateVectorSize; %default 40;               %the number of variables
+model.parameters.h=0.05; %default 0.05;             %the time step
+model.parameters.F=8;
+model.parameters.pert=1e-3;
+model.spin_upTimeSteps=10;
 
 
 %the structure relating model space to measurement space
 % in this simple example: states 1 and 2 out of 3 are observed, so the model space
 % has 3 dimensions, the observations space has 2. The upper left square of
 % the H matrix is diagonal, because states 1 and 2 are directly observed.
-transformation.observedStates=[1;2];%ones(model.stateVectorSize,1);
-transformation.H=zeros(2,3);
-transformation.H(1:2,1:2)=eye(length(transformation.observedStates));
+transformation.observedStates=(1:model.stateVectorSize)';%ones(model.stateVectorSize,1);
+transformation.H=eye(model.stateVectorSize);
 
 
 
@@ -69,10 +71,10 @@ plotParameter=1;
 
 %% settings/assumptions needed by the different schemes
 %standard deviation (error) in observations
-settings.sigma_d=[1;1]*[1 10];
+settings.sigma_d=0.25*ones(model.stateVectorSize,1)*[1 4];
 
 %forcing error, standard deviation of observations of the forcings
-observations.forcingError=[1;1;1];
+observations.forcingError=ones(model.stateVectorSize,1);
 
 
 
@@ -100,8 +102,12 @@ for sigma_dCoutner=1:size(settings.sigma_d,2);
         comDAImprovement=[];
         
         %time axis (for plotting)
-        tAxis=model.parameters.dt*n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)*...
-            (1:n_timesteps);
+        model.parameters.dt=model.parameters.h;
+        tAxis=model.parameters.dt*...
+            n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)*(1:n_timesteps);
+        observations.tAxis=model.parameters.dt*...
+            n_modelStepsPerTimestep(n_modelStepsPerTimestepCounter)*observations.timestamp;
+        
         
         
         for runCounter=1:runNr; %repeat a few times to get more data.
@@ -109,7 +115,11 @@ for sigma_dCoutner=1:size(settings.sigma_d,2);
             %% settings that change every run
             
             %the starting state vector
-            psi_0=10*randn(model.stateVectorSize,1);
+            psi_0=model.parameters.F.*ones(model.parameters.J,1);
+            psi_0(20)=model.parameters.pert;
+            
+            %spin-up
+            psi_0=feval(model.model,model.parameters,psi_0,model.spin_upTimeSteps,[]);
             
             %mean in starting state vector
             settings.mu_psi_0=psi_0;
@@ -183,7 +193,7 @@ for sigma_dCoutner=1:size(settings.sigma_d,2);
                 observations.forcingEnsemble(:,:,t_step)=observations.forcing(:,t_step)*ones(1,N)+...
                     (observations.forcingError*ones(1,N)).*randn(n,N);
             end %for t_step=1:length(observations.timestamp);
-             
+            
             %run the EnKF
             
             ensemble=EnKF(model,observations,transformation,initial_ensemble,...
@@ -233,7 +243,8 @@ end %for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
 
 %% save results to be able to change figure without re-running analyses
 
-save([figdir filesep filename '.mat']);
+save([cacheDir filesep filename '.mat']);
+
 
 
 %% make figure
@@ -242,16 +253,16 @@ load([cacheDir filesep filename '.mat']);
 
 subPlotCounter=0;
 %scatter EnKF results vs comDA results, make the figure.
-for sigma_dCoutner=1:size(settings.sigma_d,1);
+for sigma_dCoutner=1:size(settings.sigma_d,2);
     for n_modelStepsPerTimestepCounter=1:length(n_modelStepsPerTimestep);
         
         subPlotCounter=subPlotCounter+1;
         
         figure(1);
-        subplot(size(settings.sigma_d,1),length(n_modelStepsPerTimestep),subPlotCounter);
+        subplot(size(settings.sigma_d,2),length(n_modelStepsPerTimestep),subPlotCounter);
         scatter(results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,1),...
             results{sigma_dCoutner,n_modelStepsPerTimestepCounter}(:,2));
-        axis([0 10 0 10]);
+        %axis([0 10 0 10]);
         hold on
         plot(0:1:10,0:1:10,'r')
         drawnow
