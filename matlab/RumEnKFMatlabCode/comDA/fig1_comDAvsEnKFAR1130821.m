@@ -1,10 +1,9 @@
 %% doc
 % This script shows the differences (almost none) between EnKF and comDA
-% when applied to a 40 parameter Lorenz model with 40 observed states
+% when applied to a 3 dimensional AR1 model with 2 observed states
 
 %UPDATE 140505: changed all output file names to RumEnKF to match article
 %jargon. TODO: change all variables as well :-s
-
 
 %% prelim
 clc
@@ -20,56 +19,48 @@ addpath(libDir);
 %% parameters
 
 %total number of timesteps to run
-n_timesteps=100;
+n_timesteps=500;
 n_modelStepsPerTimestep=1;
 
+%time axis (for plotting)
+dt=1;
+tAxis=dt*(1:n_timesteps);
 
 %observation timestamps
-observations.timestamp=20:20:n_timesteps;
-
+observations.timestamp=50:50:500;
+observations.tAxis=dt*observations.timestamp;
 
 %the actual model
-model.model=@lorenz4D;
-model.stateVectorSize=40;
-model.parameters.J=model.stateVectorSize; %default 40;               %the number of variables
-model.parameters.h=0.05; %default 0.05;             %the time step
-model.parameters.F=8;
-model.parameters.pert=1e-3;
-model.domain=[];
-
-%time axis (for plotting)
-model.parameters.dt=model.parameters.h;
-tAxis=model.parameters.dt*n_modelStepsPerTimestep*(1:n_timesteps);
-observations.tAxis=model.parameters.dt*n_modelStepsPerTimestep*observations.timestamp;
-
+model.model=@AR1Filter;
+model.stateVectorSize=3;
+model.parameters.AR1coefs=[0.5 0.2 0.3 ; 0.2 0.5 0.3 ; 0.3 0.3 0.4];
 
 %the structure relating model space to measurement space
 % in this simple example: diagonal matrix: all states are observed
-transformation.observedStates=(1:model.stateVectorSize)';%ones(model.stateVectorSize,1);
-transformation.H=eye(model.stateVectorSize);
+transformation.observedStates=[1;2];%ones(model.stateVectorSize,1);
+transformation.H=zeros(2,3);
+transformation.H(1:2,1:2)=eye(length(transformation.observedStates));
 
 %the starting state vector
-psi_0=model.parameters.F.*ones(model.parameters.J,1);
-psi_0(20)=model.parameters.pert;
+psi_0=[0;0;0];
 
 
 %number of ensemble members
-N=100;
+N=250;
 
 %which state to plot
-plotParameterList=[1 2];
-
+plotParameterList=[1 3];
 
 %% settings/assumptions needed by the different schemes
 %mean in starting state vector
 settings.mu_psi_0=psi_0;
 %covariance in starting state vector
-settings.cov_psi_0=0.25*eye(model.stateVectorSize);
+settings.cov_psi_0=model.parameters.AR1coefs;
 %standard deviation (error) in observations
-settings.sigma_d=0.25*ones(model.stateVectorSize,1);
+settings.sigma_d=[1;1];
 
 %forcing error, standard deviation of observations of the forcings
-observations.forcingError=ones(model.stateVectorSize,1);
+observations.forcingError=[1;1;1];
 
 
 
@@ -90,7 +81,7 @@ truth.model=model.model;
 truth.parameters=model.parameters;
 
 %true forcing
-truth.forcing=20*randn(n,n_timesteps*n_modelStepsPerTimestep);
+truth.forcing=randn(n,n_timesteps*n_modelStepsPerTimestep);
 
 %true states, using true model and true forcing.
 truth.state=zeros(n,n_timesteps);
@@ -103,7 +94,6 @@ for t=1:n_timesteps
         truth.state(:,t)=feval(truth.model,truth.parameters,truth.state(:,t-1),n_modelStepsPerTimestep,truth.forcing(:,tSelect));
     end %if n==1;
 end %for t_step=1:n_timesteps
-
 
 %% create observations from truth
 
@@ -147,17 +137,19 @@ end %for t_step=1:length(observations.timestamp);
 
 %run the EnKF
 
-ensemble=EnKF(model,observations,transformation,initial_ensemble,...
-    n_timesteps,n_modelStepsPerTimestep,N);
+ensemble=EnKF(model,observations,transformation,initial_ensemble,n_timesteps,...
+    n_modelStepsPerTimestep,N);
 
 %calculate statistics
 EnKFEnsembleMean=permute(mean(ensemble,2),[1 3 2]);
 EnKFEnsembleStd=permute(std(ensemble,[],2),[1 3 2]);
 
+
 %% run comDA
 
 [comDAEnsembleMean,comDACovarianceMatrix]=...
-    comDA(model,observations,transformation,settings,n_timesteps,n_modelStepsPerTimestep,N);
+    comDA(model,observations,transformation,settings,n_timesteps,...
+    n_modelStepsPerTimestep,N);
 
 comDAStd=zeros(n,n_timesteps);
 for t=1:n_timesteps
@@ -166,30 +158,27 @@ end %for t=1:n_timesteps
 
 %% plot results
 
-
 close all
 for plotParameter=plotParameterList;
     figure(plotParameter);
     ha1=subplot(2,1,1);
     %plot truth
-    plot(tAxis,truth.state(plotParameter,:),'k')
+    plot(truth.state(plotParameter,:),'k')
     hold on
     %plot observations
     if plotParameter<=size(observations.obs,1)
-        
-        plot(observations.tAxis,observations.obs(plotParameter,:),'xk');
-    end %    if plotParameter<=size(observations.obs,1)
-    
+        plot(observations.tAxis,observations.obs(plotParameter,:),'o');
+    end %if plotParameter<=size(observations.obs,1)
     %plot EnKF results
-    plot(tAxis,EnKFEnsembleMean(plotParameter,:),'r')
+    plot(tAxis,EnKFEnsembleMean(plotParameter,:),'-.')
     plot(tAxis,EnKFEnsembleMean(plotParameter,:)+2*EnKFEnsembleStd(plotParameter,:),'-.r')
     %plot comDA results
-    plot(tAxis,comDAEnsembleMean(plotParameter,:),'b')
-    plot(tAxis,comDAEnsembleMean(plotParameter,:)+2*comDAStd(plotParameter,:),'-.b')
+    plot(tAxis,comDAEnsembleMean(plotParameter,:),'--')
+    plot(tAxis,comDAEnsembleMean(plotParameter,:)+2*comDAStd(plotParameter,:),'--r')
     
-    plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'-.r')
-    plot(tAxis,comDAEnsembleMean(plotParameter,:)-2*comDAStd(plotParameter,:),'-.b')
-    
+    plot(tAxis,EnKFEnsembleMean(plotParameter,:)-2*EnKFEnsembleStd(plotParameter,:),'r')
+    plot(tAxis,comDAEnsembleMean(plotParameter,:)-2*comDAStd(plotParameter,:),'--r')
+    set(gca,'YLim',[-25 25]);
     if plotParameter<=size(observations.obs,1)
         hl1=legend('truth','observations','EnKF Ensemble Mean',...
             'EnKF 95% ensemble interval','RumEnKF Ensemble Mean','RumEnKF 95% ensemble interval',...
@@ -199,14 +188,13 @@ for plotParameter=plotParameterList;
             'EnKF 95% ensemble interval','RumEnKF Ensemble Mean','RumEnKF 95% ensemble interval',...
             'Location','NorthEastOutside');
     end %if plotParameter<=size(observations.obs,1)
-    xlabel('time [s]');
+    xlabel('time [-]');
     ylabel('\Psi_{1} [-]');
     
-    
     ha2=subplot(2,1,2);
-    plot(tAxis,EnKFEnsembleStd(plotParameter,:),'r',tAxis,comDAStd(plotParameter,:),'b');
+    plot(tAxis,EnKFEnsembleStd(plotParameter,:),tAxis,comDAStd(plotParameter,:),'r');
     hl2=legend('standard deviation EnKF','standard deviation RumEnKF','Location','NorthEastOutside');
-    xlabel('time [s]');
+    xlabel('time [-]');
     ylabel('standard deviation of \Psi_{1} [-]');
     
     pl1 = get(hl1,'Position');
@@ -216,8 +204,8 @@ for plotParameter=plotParameterList;
     pa2 = get(ha2,'Position');
     set(ha1,'Position',[pa2(1) pa1(2) pa2(3) pa1(4)]);
     
-    print(gcf,[figdir filesep 'fig2b_RumEnKFvsEnKFLorenz96Parameter' num2str(plotParameter) '.eps'],'-depsc');
+    
+    print(gcf,[figdir filesep 'fig1_RumEnKFvsEnKFAR1Parameter' num2str(plotParameter) '.eps'],'-depsc');
     
 end %for plotParameter=plotParameterList;
-
 
